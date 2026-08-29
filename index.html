@@ -62,14 +62,12 @@
       const role = params.get('role');
       const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
 
-      // ✅ ส่ง token ผ่าน query string เข้า iframe โดยตรง
-      //    (ไม่พึ่ง localStorage เพียงอย่างเดียว เพราะ Safari ITP อาจบล็อก
-      //     storage ของ iframe ข้าม origin ได้)
+
       iframe.src = APPS_SCRIPT_BASE + '?action=' + targetAction
         + '&token=' + encodeURIComponent(token)
         + '&role=' + encodeURIComponent(role || '');
     }
-    // ถ้าไม่มี token และไม่มี loginError → iframe โหลดหน้า default (login) ตามปกติ ไม่ต้องทำอะไรเพิ่ม
+   
   })();
   </script>
 </body>
