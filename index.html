@@ -23,7 +23,10 @@
 </body>
 </html> -->
 
-<!DOCTYPE html>
+
+
+
+<!-- <!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -58,4 +61,80 @@
   })();
   </script>
 </body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>WebappBUpBoostUpLife</title>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body { margin: 0; font-family: 'Kanit', 'IBM Plex Sans Thai', sans-serif; }
+    .swal2-popup { font-family: inherit; }
+  </style>
+</head>
+<body>
+  <iframe id="mainFrame"
+    src="about:blank"
+    allow="geolocation; clipboard-write"
+    style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;">
+  </iframe>
+  <script>
+  (function(){
+    const params = new URLSearchParams(window.location.search);
+    const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbwFnngjZaChG6s5eMV2fRVOUKSwd7JOwVm_y1g8nUrSt-sxOyGbEXXhdja3PNBsMJq3Gg/exec';
+    const iframe = document.getElementById('mainFrame');
+
+    // ── กรณี login ล้มเหลว ──
+    if (params.get('loginError')) {
+      const errorHtml = params.get('loginError'); // ได้ HTML เต็มจาก server แล้ว
+      history.replaceState({}, document.title, window.location.pathname);
+
+      Swal.fire({
+        icon: 'error',
+        title: 'เข้าสู่ระบบไม่สำเร็จ',
+        html: errorHtml,
+        confirmButtonText: 'ตกลง',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        customClass: { popup: 'rounded-4 shadow-lg' }
+      }).then(() => {
+        iframe.src = APPS_SCRIPT_BASE + '?action=login';
+      });
+      return;
+    }
+
+    // ── กรณี login สำเร็จ ──
+    const token = params.get('token');
+    if (token) {
+      history.replaceState({}, document.title, window.location.pathname);
+      const role = params.get('role');
+      const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
+      const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
+        + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role || '');
+
+      // แสดง toast สำเร็จแบบไม่บล็อกหน้าจอ พร้อมโหลด iframe ปลายทางไปพร้อมกัน
+      Swal.fire({
+        icon: 'success',
+        title: 'เข้าสู่ระบบสำเร็จ',
+        toast: true,
+        position: 'top',
+        showConfirmButton: false,
+        timer: 2200,
+        timerProgressBar: true,
+        customClass: { popup: 'rounded-4 shadow' }
+      });
+
+      iframe.src = targetUrl;
+      return;
+    }
+
+    // ── กรณีปกติ ไม่มี token/error ──
+    iframe.src = APPS_SCRIPT_BASE + '?action=login';
+  })();
+  </script>
+</body>
 </html>
+
