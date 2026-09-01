@@ -107,13 +107,24 @@
     }
 
     // ── กรณี login สำเร็จ ──
+    // const token = params.get('token');
+    // if (token) {
+    //   history.replaceState({}, document.title, window.location.pathname);
+    //   const role = params.get('role');
+    //   const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
+    //   const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
+    //     + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role || '');
+
     const token = params.get('token');
-    if (token) {
-      history.replaceState({}, document.title, window.location.pathname);
-      const role = params.get('role');
-      const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
-      const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
-        + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role || '');
+if (token) {
+  history.replaceState({}, document.title, window.location.pathname);
+  const role = params.get('role');
+  const provider = params.get('provider') || 'google';  // ✅ เพิ่มบรรทัดนี้
+  const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
+  const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
+    + '&token=' + encodeURIComponent(token)
+    + '&role=' + encodeURIComponent(role || '')
+    + '&provider=' + encodeURIComponent(provider);  // ✅ เพิ่มบรรทัดนี้
 
       // แสดง toast สำเร็จแบบไม่บล็อกหน้าจอ พร้อมโหลด iframe ปลายทางไปพร้อมกัน
       Swal.fire({
