@@ -1,68 +1,3 @@
-<!-- <!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WebappBUpBoostUpLife</title>
-</head>
-
-<body style="margin:0;">
-
-  <iframe
-    src="https://script.google.com/macros/s/AKfycbwFnngjZaChG6s5eMV2fRVOUKSwd7JOwVm_y1g8nUrSt-sxOyGbEXXhdja3PNBsMJq3Gg/exec"
-    allow="geolocation"
-    style="
-      position:absolute;
-      top:0;
-      left:0;
-      width:100%;
-      height:100%;
-      border:0;
-    ">
-  </iframe>
-
-</body>
-</html> -->
-
-
-
-
-<!-- <!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WebappBUpBoostUpLife</title>
-</head>
-<body style="margin:0;">
-  <iframe id="mainFrame"
-    src="https://script.google.com/macros/s/AKfycbwFnngjZaChG6s5eMV2fRVOUKSwd7JOwVm_y1g8nUrSt-sxOyGbEXXhdja3PNBsMJq3Gg/exec"
-    allow="geolocation; clipboard-write"
-    style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;">
-  </iframe>
-  <script>
-  (function(){
-    const params = new URLSearchParams(window.location.search);
-    const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbwFnngjZaChG6s5eMV2fRVOUKSwd7JOwVm_y1g8nUrSt-sxOyGbEXXhdja3PNBsMJq3Gg/exec';
-    const iframe = document.getElementById('mainFrame');
-
-    if (params.get('loginError')) {
-      alert('เข้าสู่ระบบไม่สำเร็จ: ' + params.get('loginError'));
-      history.replaceState({}, document.title, window.location.pathname);
-      iframe.src = APPS_SCRIPT_BASE + '?action=login';
-      return;
-    }
-    const token = params.get('token');
-    if (token) {
-      history.replaceState({}, document.title, window.location.pathname);
-      const role = params.get('role');
-      const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
-      iframe.src = APPS_SCRIPT_BASE + '?action=' + targetAction
-        + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role || '');
-    }
-  })();
-  </script>
-</body>
-</html> -->
-
 
 <!DOCTYPE html>
 <html>
@@ -84,8 +19,6 @@
   <script>
   (function(){
     const params = new URLSearchParams(window.location.search);
-    // const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbwNiMbbVQM-VyXJEed6SxGWziCSR-BUL8HKo_mShvx9fLZJR1S2jxPC922q2Lo0D42plA/exec';
-    // const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbw1z2MwhdJhHnQpIHzIMqKLcxrU9HsXhHtyke_z7MCfWTlrPEtkcKFwwLOcJ69qEzoHYw/exec';
     const APPS_SCRIPT_BASE = 'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
     const iframe = document.getElementById('mainFrame');
 
@@ -107,15 +40,6 @@
       });
       return;
     }
-
-    // ── กรณี login สำเร็จ ──
-    // const token = params.get('token');
-    // if (token) {
-    //   history.replaceState({}, document.title, window.location.pathname);
-    //   const role = params.get('role');
-    //   const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
-    //   const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
-    //     + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role || '');
 
     const token = params.get('token');
 if (token) {
