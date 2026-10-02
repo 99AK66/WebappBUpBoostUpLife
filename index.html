@@ -24,7 +24,7 @@
 
     // ── กรณี login ล้มเหลว ──
     if (params.get('loginError')) {
-      const errorHtml = params.get('loginError'); // ได้ HTML เต็มจาก server แล้ว
+      const errorHtml = params.get('loginError'); 
       history.replaceState({}, document.title, window.location.pathname);
 
       Swal.fire({
@@ -45,12 +45,12 @@
 if (token) {
   history.replaceState({}, document.title, window.location.pathname);
   const role = params.get('role');
-  const provider = params.get('provider') || 'google';  // ✅ เพิ่มบรรทัดนี้
+  const provider = params.get('provider') || 'google'; 
   const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
   const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
     + '&token=' + encodeURIComponent(token)
     + '&role=' + encodeURIComponent(role || '')
-    + '&provider=' + encodeURIComponent(provider);  // ✅ เพิ่มบรรทัดนี้
+    + '&provider=' + encodeURIComponent(provider);  
 
       // แสดง toast สำเร็จแบบไม่บล็อกหน้าจอ พร้อมโหลด iframe ปลายทางไปพร้อมกัน
       Swal.fire({
