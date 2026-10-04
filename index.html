@@ -46,7 +46,8 @@ if (token) {
   history.replaceState({}, document.title, window.location.pathname);
   const role = params.get('role');
   const provider = params.get('provider') || 'google'; 
-  const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
+  // const targetAction = (role === 'admin' || role === 'staff') ? 'admin' : 'user';
+  const targetAction = (role === 'admin' || role === 'staff' || role === 'sdp_staff') ? 'admin' : 'user';
   const targetUrl = APPS_SCRIPT_BASE + '?action=' + targetAction
     + '&token=' + encodeURIComponent(token)
     + '&role=' + encodeURIComponent(role || '')
