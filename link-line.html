@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>เชื่อมบัญชี LINE</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script></head>
+<body style="font-family:sans-serif;text-align:center;padding:50px 20px">
+<div id="m" style="font-size:16px;line-height:1.9">กำลังเชื่อมต่อ LINE...</div>
+<script>
+var LIFF_ID = 'ใส่ LIFF ID';
+var API = 'https://script.google.com/macros/s/AKfycbyC0m5u1JcqmNClJhnCbIFT2MYQcj_gzt-64-rkJol1y0t58ekJ-TiO6hgjV_7zA2oK/exec'; // ให้ตรงกับ deployment ปัจจุบัน
+(async function () {
+  var m = document.getElementById('m');
+  try {
+    var t = new URLSearchParams(location.search).get('t');
+    if (!t) { m.textContent = '❌ ลิงก์ไม่ถูกต้อง'; return; }
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login({ redirectUri: location.href }); return; }
+    var idt = liff.getIDToken();
+    var r = await fetch(API + '?action=linkLine&t=' + encodeURIComponent(t) + '&idToken=' + encodeURIComponent(idt));
+    var j = await r.json();
+    m.textContent = j.message || (j.success ? '✅ สำเร็จ' : '❌ ไม่สำเร็จ');
+  } catch (e) { m.textContent = '❌ ' + e.message; }
+})();
+</script></body></html>
