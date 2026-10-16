@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- 1. <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="utf-8">
@@ -54,7 +54,7 @@
     })();
   </script>
 </body>
-</html>
+</html> -->
 
 
 
@@ -65,7 +65,7 @@
 
 
 
-<!-- <!DOCTYPE html>
+2.<!-- <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="utf-8">
@@ -220,3 +220,204 @@
   </script>
 </body>
 </html> -->
+
+
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>เชื่อมบัญชี LINE</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 40px 20px;
+      line-height: 1.8;
+      color: #222;
+      background: #f7f8fa;
+    }
+    #m {
+      max-width: 420px;
+      margin: auto;
+      background: #fff;
+      padding: 24px 18px;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+    .line-button {
+      display: inline-block;
+      box-sizing: border-box;
+      margin-top: 14px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: 0;
+      background: #06c755;
+      color: #fff;
+      text-decoration: none;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .line-button.secondary {
+      background: #fff;
+      color: #06c755;
+      border: 1px solid #06c755;
+    }
+    .note {
+      margin-top: 12px;
+      color: #555;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="m">กำลังตรวจสอบลิงก์...</div>
+
+  <script>
+    const LIFF_ID = '2011987956-58Mx5Z3v';
+
+    const API =
+      'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
+
+    const OA_ADD_FRIEND_URL = 'https://line.me/R/ti/p/@907qbzdc';
+
+    const m = document.getElementById('m');
+
+    function getTicket() {
+      const p = new URLSearchParams(location.search);
+      let t = p.get('t');
+
+      if (!t && p.get('liff.state')) {
+        let s = p.get('liff.state');
+        try { s = decodeURIComponent(s); } catch (e) {}
+        t = new URLSearchParams(s.replace(/^\/?\??/, '')).get('t');
+      }
+
+      if (t) {
+        try { sessionStorage.setItem('linkTicket', t); } catch (e) {}
+      } else {
+        try { t = sessionStorage.getItem('linkTicket'); } catch (e) {}
+      }
+      return t;
+    }
+
+    // เชื่อมบัญชีกับ backend
+    async function linkLine(ticket, idToken) {
+      m.textContent = 'กำลังเชื่อมบัญชี LINE...';
+
+      const url = API
+        + '?action=linkLine'
+        + '&t=' + encodeURIComponent(ticket)
+        + '&idToken=' + encodeURIComponent(idToken);
+
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (result.success) {
+        try { sessionStorage.removeItem('linkTicket'); } catch (e) {}
+      }
+      return result;
+    }
+
+    // เช็กสถานะเพื่อน: true / false / null (เช็กไม่ได้)
+    async function isFriend() {
+      try {
+        const f = await liff.getFriendship();
+        return !!f.friendFlag;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function showSuccess(message, friend) {
+      m.textContent = '';
+
+      const title = document.createElement('div');
+      title.textContent = message || '✅ เชื่อมบัญชี LINE สำเร็จ';
+      m.append(title);
+
+      if (friend === true) return;
+
+      const sub = document.createElement('div');
+      sub.className = 'note';
+      sub.textContent = friend === false
+        ? 'กรุณาเพิ่มเพื่อน BUP SDP Booking เพื่อรับการแจ้งเตือน'
+        : 'หากยังไม่ได้เพิ่มเพื่อน กรุณาเพิ่มเพื่อน BUP SDP Booking เพื่อรับการแจ้งเตือน';
+
+      const add = document.createElement('a');
+      add.className = 'line-button';
+      add.href = OA_ADD_FRIEND_URL;
+      add.textContent = 'เพิ่มเพื่อน LINE OA';
+
+      m.append(sub, add);
+
+      if (friend === false) {
+        const recheck = document.createElement('button');
+        recheck.className = 'line-button secondary';
+        recheck.style.marginLeft = '8px';
+        recheck.textContent = 'เพิ่มเพื่อนแล้ว';
+        recheck.onclick = async function () {
+          recheck.disabled = true;
+          const f = await isFriend();
+          if (f === true) {
+            showSuccess('✅ เชื่อมบัญชีและเพิ่มเพื่อนเรียบร้อยแล้ว', true);
+          } else {
+            recheck.disabled = false;
+            sub.textContent = 'ยังไม่พบการเพิ่มเพื่อน กรุณากดเพิ่มเพื่อนก่อน แล้วกดปุ่มอีกครั้ง';
+          }
+        };
+        m.append(recheck);
+      }
+    }
+
+    (async function () {
+      try {
+        const ticket = getTicket();
+
+        if (!ticket) {
+          m.textContent =
+            '❌ ไม่พบ Ticket กรุณากลับไปหน้าจอง SDP แล้วกดเชื่อม LINE ใหม่';
+          return;
+        }
+
+        m.textContent = 'กำลังเปิด LINE...';
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: location.href });
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+        if (!idToken) {
+          m.textContent =
+            '❌ ไม่พบ ID Token กรุณาตรวจสอบ scope openid ของ LIFF';
+          return;
+        }
+
+        // 1) เชื่อมบัญชีก่อน เพื่อให้ได้ userId แน่ๆ
+        const result = await linkLine(ticket, idToken);
+
+        if (!result.success) {
+          m.textContent = result.message || '❌ เชื่อมบัญชีไม่สำเร็จ';
+          return;
+        }
+
+        // 2) ตรวจสถานะเพื่อน ถ้ายังไม่เป็นเพื่อนให้แสดงปุ่มเพิ่มเพื่อน
+        m.textContent = 'กำลังตรวจสอบการเพิ่มเพื่อน...';
+        const friend = await isFriend();
+        showSuccess(result.message, friend);
+
+      } catch (err) {
+        m.textContent =
+          '❌ เกิดข้อผิดพลาด: ' + (err.message || String(err));
+      }
+    })();
+  </script>
+</body>
+</html>
