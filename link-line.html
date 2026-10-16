@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="utf-8">
@@ -50,6 +50,171 @@
         if (j.success) { try { sessionStorage.removeItem('linkTicket'); } catch (e) {} }
       } catch (err) {
         m.textContent = '❌ เกิดข้อผิดพลาด: ' + err.message;
+      }
+    })();
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>เชื่อมบัญชี LINE</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 40px 20px;
+      color: #263238;
+      line-height: 1.9;
+    }
+
+    #m {
+      font-size: 16px;
+      overflow-wrap: anywhere;
+    }
+
+    .line-button {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 12px 22px;
+      background: #06C755;
+      color: #fff;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="m">กำลังตรวจสอบลิงก์...</div>
+
+  <script>
+    const LIFF_ID = '2011987956-58Mx5Z3v';
+    const API = 'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
+    const OA_ADD_FRIEND_URL = 'https://line.me/R/ti/p/@907qbzdc';
+
+    function getTicket() {
+      const p = new URLSearchParams(location.search);
+      let t = p.get('t');
+
+      if (!t && p.get('liff.state')) {
+        const s = p.get('liff.state');
+        t = new URLSearchParams(s.replace(/^\/?\??/, '')).get('t');
+      }
+
+      if (t) {
+        try {
+          sessionStorage.setItem('linkTicket', t);
+        } catch (e) {}
+      } else {
+        try {
+          t = sessionStorage.getItem('linkTicket');
+        } catch (e) {}
+      }
+
+      return t;
+    }
+
+    function showAddFriendMessage() {
+      const m = document.getElementById('m');
+      m.textContent = '';
+
+      const title = document.createElement('div');
+      title.textContent = 'กรุณาเพิ่มเพื่อน BUP SDP Booking เพื่อรับการแจ้งเตือน';
+
+      const button = document.createElement('a');
+      button.className = 'line-button';
+      button.href = OA_ADD_FRIEND_URL;
+      button.target = '_blank';
+      button.rel = 'noopener noreferrer';
+      button.textContent = 'เพิ่มเพื่อน LINE OA';
+
+      const note = document.createElement('div');
+      note.style.marginTop = '12px';
+      note.textContent = 'หลังเพิ่มเพื่อนแล้ว กดปุ่มด้านล่างเพื่อเชื่อมบัญชี';
+
+      const retry = document.createElement('button');
+      retry.className = 'line-button';
+      retry.style.border = '0';
+      retry.style.marginTop = '14px';
+      retry.textContent = 'เพิ่มเพื่อนแล้ว กดเพื่อเชื่อมต่อ';
+      retry.onclick = () => location.reload();
+
+      m.append(title, button, note, retry);
+    }
+
+    async function linkLine(ticket, idToken) {
+      const url = API + '?action=linkLine&t=' + encodeURIComponent(ticket) + '&idToken=' + encodeURIComponent(idToken);
+
+      const response = await fetch(url);
+      const result = await response.json();
+
+      document.getElementById('m').textContent =
+        result.message || (result.success ? '✅ เชื่อมบัญชี LINE สำเร็จ' : '❌ เชื่อมบัญชีไม่สำเร็จ');
+
+      if (result.success) {
+        try {
+          sessionStorage.removeItem('linkTicket');
+        } catch (e) {}
+      }
+    }
+
+    (async function () {
+      const m = document.getElementById('m');
+
+      try {
+        const ticket = getTicket();
+
+        if (!ticket) {
+          m.textContent = '❌ ไม่พบ Ticket กรุณากลับไปหน้าจอง SDP แล้วกดเชื่อม LINE ใหม่';
+          return;
+        }
+
+        m.textContent = 'กำลังเปิด LINE...';
+
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: location.href });
+          return;
+        }
+
+        const idToken = liff.getIDToken();
+
+        if (!idToken) {
+          m.textContent = '❌ ไม่พบ ID Token กรุณาตรวจสอบ Scope openid ของ LIFF';
+          return;
+        }
+
+        m.textContent = 'กำลังตรวจสอบสถานะเพื่อน LINE...';
+
+        // ตรวจสอบสถานะเพื่อนก่อนเชื่อมบัญชี
+        const friendship = await liff.getFriendship();
+
+        if (!friendship.friendFlag) {
+          showAddFriendMessage();
+          return;
+        }
+
+        m.textContent = 'กำลังเชื่อมบัญชี LINE...';
+
+        await linkLine(ticket, idToken);
+
+      } catch (err) {
+        m.textContent = '❌ เกิดข้อผิดพลาด: ' + (err.message || err);
       }
     })();
   </script>
