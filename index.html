@@ -153,6 +153,13 @@ if (token) {
       return;
     }
 
+    const ticket = params.get('ticket');
+if (ticket && /^[0-9a-f-]{36}$/i.test(ticket)) {
+  history.replaceState({}, document.title, window.location.pathname);
+  iframe.src = APPS_SCRIPT_BASE + '?action=sdpBooking&ticket=' + encodeURIComponent(ticket);
+  return;
+}
+
     // ── กรณีปกติ ไม่มี token/error ──
     iframe.src = APPS_SCRIPT_BASE + '?action=login';
   })();
