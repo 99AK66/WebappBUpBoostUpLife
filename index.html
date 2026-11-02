@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -101,10 +101,314 @@
   </script>
 </body>
 </html>
+ -->
 
 
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>WebappBUpBoostUpLife</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Kanit', 'IBM Plex Sans Thai', sans-serif;
+    }
+
+    .swal2-popup {
+      font-family: inherit;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- =====================================================
+       MAIN IFRAME
+  ====================================================== -->
+
+  <iframe
+    id="mainFrame"
+    src="about:blank"
+    allow="geolocation; clipboard-write; web-share"
+    style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    ">
+  </iframe>
 
 
+  <script>
+  (function () {
+
+    'use strict';
+
+    // =====================================================
+    // 1. CONFIGURATION
+    // =====================================================
+
+    const params = new URLSearchParams(window.location.search);
+
+    const APPS_SCRIPT_BASE =
+      'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
+
+    const GITHUB_ORIGIN = 'https://99ak66.github.io';
+
+    const PREFIX = 'sdpPrefetch_v1:';
+
+    const iframe = document.getElementById('mainFrame');
 
 
+    // =====================================================
+    // 2. SDP PREFETCH MESSAGE BRIDGE
+    // ต้องติดตั้ง Listener ก่อนโหลด iframe
+    // =====================================================
+
+    window.addEventListener('message', function (ev) {
+
+      // รับเฉพาะ iframe ที่กำหนด
+      if (ev.source !== iframe.contentWindow) return;
+
+      // ตรวจสอบ Origin ของหน้า GAS
+      if (ev.origin !== 'https://script.google.com') return;
+
+      if (!ev.data ||
+          ev.data.type !== 'SDP_PREFETCH_REQUEST') return;
+
+      // อ่าน Cache ที่ Wrapper เตรียมไว้
+      const out = {};
+
+      for (let i = 0; i < sessionStorage.length; i++) {
+
+        const key = sessionStorage.key(i);
+
+        if (key && key.indexOf(PREFIX) === 0) {
+          out[key] = sessionStorage.getItem(key);
+        }
+      }
+
+      // ส่งกลับไปยัง iframe
+      ev.source.postMessage({
+
+        type: 'SDP_PREFETCH_DATA',
+
+        data: out,
+
+        timestamp: Date.now()
+
+      }, ev.origin);
+
+    });
+
+
+    // =====================================================
+    // 3. LOAD IFRAME
+    // =====================================================
+
+    function loadIframe(url) {
+      iframe.src = url;
+    }
+
+
+    // =====================================================
+    // 4. LOGIN ERROR
+    // =====================================================
+
+    if (params.get('loginError')) {
+
+      const errorHtml = params.get('loginError');
+
+      history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      Swal.fire({
+
+        icon: 'error',
+        title: 'เข้าสู่ระบบไม่สำเร็จ',
+
+        // ใช้ text เพื่อป้องกัน HTML injection
+        text: errorHtml,
+
+        confirmButtonText: 'ตกลง',
+
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+
+        customClass: {
+          popup: 'rounded-4 shadow-lg'
+        }
+
+      }).then(function () {
+
+        loadIframe(APPS_SCRIPT_BASE + '?action=login');
+
+      });
+
+      return;
+    }
+
+
+    // =====================================================
+    // 5. GOOGLE / LINE LOGIN SUCCESS
+    // =====================================================
+
+    const token = params.get('token');
+
+    if (token) {
+
+      history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      const role = params.get('role') || '';
+
+      const provider = params.get('provider') || 'google';
+
+      const targetAction =
+        (
+          role === 'admin' ||
+          role === 'staff' ||
+          role === 'sdp_staff'
+        )
+          ? 'admin'
+          : 'user';
+
+      const targetUrl =
+        APPS_SCRIPT_BASE +
+        '?action=' + targetAction +
+        '&token=' + encodeURIComponent(token) +
+        '&role=' + encodeURIComponent(role) +
+        '&provider=' + encodeURIComponent(provider);
+
+
+      Swal.fire({
+
+        icon: 'success',
+        title: 'เข้าสู่ระบบสำเร็จ',
+
+        toast: true,
+        position: 'top',
+
+        showConfirmButton: false,
+
+        timer: 2200,
+        timerProgressBar: true,
+
+        customClass: {
+          popup: 'rounded-4 shadow'
+        }
+
+      });
+
+      loadIframe(targetUrl);
+
+      return;
+    }
+
+
+    // =====================================================
+    // 6. SDP REBOOK FROM LINE
+    // =====================================================
+
+    if (params.get('action') === 'sdpRebook') {
+
+      const rb = params.get('rb') || '';
+      const m = params.get('m') || '';
+      const src = params.get('src') || '';
+
+      if (/^[0-9a-f-]{36}$/i.test(rb)) {
+
+        history.replaceState(
+          {},
+          document.title,
+          window.location.pathname
+        );
+
+        let targetUrl =
+          APPS_SCRIPT_BASE +
+          '?action=sdpRebook&rb=' +
+          encodeURIComponent(rb);
+
+        if (m === 'change') {
+          targetUrl += '&m=change';
+        }
+
+        if (/^[a-z_]{2,20}$/.test(src)) {
+          targetUrl += '&src=' + encodeURIComponent(src);
+        }
+
+        loadIframe(targetUrl);
+
+        return;
+      }
+    }
+
+
+    // =====================================================
+    // 7. SDP BOOKING FROM E-CARD / LINE TICKET
+    // =====================================================
+
+    const ticket = params.get('ticket');
+
+    if (ticket && /^[0-9a-f-]{36}$/i.test(ticket)) {
+
+      const card = params.get('card') || '';
+      const src = params.get('src') || '';
+
+      history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      let targetUrl =
+        APPS_SCRIPT_BASE +
+        '?action=sdpBooking&ticket=' +
+        encodeURIComponent(ticket);
+
+      if (/^[A-Za-z0-9]{4,10}$/.test(card)) {
+        targetUrl += '&card=' + encodeURIComponent(card);
+      }
+
+      if (/^[a-z_]{2,20}$/.test(src)) {
+        targetUrl += '&src=' + encodeURIComponent(src);
+      }
+
+      loadIframe(targetUrl);
+
+      return;
+    }
+
+
+    // =====================================================
+    // 8. NORMAL LOGIN
+    // =====================================================
+
+    loadIframe(APPS_SCRIPT_BASE + '?action=login');
+
+  })();
+  </script>
+
+</body>
+</html>
 
