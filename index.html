@@ -109,306 +109,169 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <title>WebappBUpBoostUpLife</title>
-
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
   <style>
-    body {
-      margin: 0;
-      font-family: 'Kanit', 'IBM Plex Sans Thai', sans-serif;
-    }
-
-    .swal2-popup {
-      font-family: inherit;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
+    html, body { width:100%; height:100%; margin:0; overflow:hidden; font-family:'Kanit','IBM Plex Sans Thai',sans-serif; }
+    .swal2-popup { font-family: inherit; }
+    iframe { position:fixed; inset:0; width:100%; height:100%; border:0; background:#fff; }
+    #sdpFrame { visibility:hidden; pointer-events:none; z-index:0; }
+    #loader { position:fixed; inset:0; z-index:9; display:none; align-items:center; justify-content:center;
+              flex-direction:column; gap:14px; background:#f7f8fa; color:#5f6673; font-size:14px; }
+    #loader i { width:34px; height:34px; border-radius:50%; border:3px solid #f3d9dd; border-top-color:#d62839; animation:sp .75s linear infinite; }
+    @keyframes sp { to { transform:rotate(360deg); } }
   </style>
 </head>
-
 <body>
+  <iframe id="mainFrame" src="about:blank" allow="geolocation; clipboard-write; web-share"></iframe>
+  <div id="loader"><i></i><div>กำลังเข้าสู่ระบบจอง SDP...</div></div>
 
-  <!-- =====================================================
-       MAIN IFRAME
-  ====================================================== -->
+<script>
+(function () {
+  'use strict';
 
-  <iframe
-    id="mainFrame"
-    src="about:blank"
-    allow="geolocation; clipboard-write; web-share"
-    style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 0;
-    ">
-  </iframe>
+  const params = new URLSearchParams(location.search);
+  const BASE = 'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
+  const FB_DOCS = 'https://firestore.googleapis.com/v1/projects/bup--shift-booking/databases/(default)/documents/';
+  const PREFIX = 'sdpPrefetch_v1:';
+  const main = document.getElementById('mainFrame');
+  const loader = document.getElementById('loader');
 
+  /* GAS รันใน iframe ซ้อน (*.googleusercontent.com) ตรวจ origin ด้วย regex */
+  const isGasOrigin = o => o === 'https://script.google.com' || /^https:\/\/[a-z0-9.-]+\.googleusercontent\.com$/.test(o);
 
-  <script>
-  (function () {
+  /* ---------------- Prefetch overview (1 read) ---------------- */
+  function decode(v) {
+    if (!v || typeof v !== 'object') return v;
+    if ('stringValue' in v) return v.stringValue;
+    if ('booleanValue' in v) return v.booleanValue;
+    if ('integerValue' in v) return Number(v.integerValue);
+    if ('doubleValue' in v) return Number(v.doubleValue);
+    if ('nullValue' in v) return null;
+    if ('arrayValue' in v) return (v.arrayValue.values || []).map(decode);
+    if ('mapValue' in v) { const o = {}, f = v.mapValue.fields || {}; Object.keys(f).forEach(k => o[k] = decode(f[k])); return o; }
+    return v;
+  }
+  function startPrefetch() {
+    try {                                                   // ไม่ยิงซ้ำภายใน 60 วินาที (รักษาโควต้า)
+      const last = Number(sessionStorage.getItem(PREFIX + 'ts')) || 0;
+      if (Date.now() - last < 60000) return;
+      sessionStorage.setItem(PREFIX + 'ts', String(Date.now()));
+    } catch (e) {}
+    fetch(FB_DOCS + 'sdpPub/overview', { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw 0; return r.json(); })
+      .then(j => {
+        const o = {}, f = j.fields || {};
+        Object.keys(f).forEach(k => o[k] = decode(f[k]));
+        try { sessionStorage.setItem(PREFIX + 'overview', JSON.stringify({ t: Date.now(), data: o })); } catch (e) {}
+      }).catch(() => {});
+  }
 
-    'use strict';
+  /* ---------------- Preload หน้า SDP ใน iframe ซ่อน ---------------- */
+  let sdpFrame = null, sdpReady = false, sdpInner = null, sdpInnerOrigin = '', sdpActive = false, pendingReveal = null;
 
-    // =====================================================
-    // 1. CONFIGURATION
-    // =====================================================
+  function createSdpFrame() {
+    if (sdpFrame) return;
+    sdpFrame = document.createElement('iframe');
+    sdpFrame.id = 'sdpFrame';
+    sdpFrame.allow = 'geolocation; clipboard-write; web-share';
+    sdpFrame.src = BASE + '?action=sdpBooking&preload=1';
+    document.body.appendChild(sdpFrame);
+  }
+  function reveal() {
+    sdpFrame.style.visibility = 'visible';
+    sdpFrame.style.pointerEvents = 'auto';
+    sdpFrame.style.zIndex = '2';
+    main.style.display = 'none';
+    loader.style.display = 'none';
+    if (sdpInner) sdpInner.postMessage({ type: 'SDP_ACTIVATE' }, sdpInnerOrigin);
+  }
+  function activateSdp() {
+    if (sdpActive) return;
+    sdpActive = true;
+    createSdpFrame();
+    if (sdpReady) { reveal(); return; }
+    loader.style.display = 'flex';
+    pendingReveal = reveal;
+    setTimeout(() => { if (pendingReveal) { const f = pendingReveal; pendingReveal = null; f(); } }, 12000);
+  }
 
-    const params = new URLSearchParams(window.location.search);
+  /* ---------------- Message bridge ---------------- */
+  window.addEventListener('message', function (ev) {
+    if (!isGasOrigin(ev.origin) || !ev.data || typeof ev.data.type !== 'string') return;
+    const t = ev.data.type;
 
-    const APPS_SCRIPT_BASE =
-      'https://script.google.com/macros/s/AKfycbw0A1i3pUMMrE6swKtj757qNa5o_Ev-6nf8RysOzPEVQOEu6stxAp2xznzjSnjVmxI49g/exec';
-
-    const GITHUB_ORIGIN = 'https://99ak66.github.io';
-
-    const PREFIX = 'sdpPrefetch_v1:';
-
-    const iframe = document.getElementById('mainFrame');
-
-
-    // =====================================================
-    // 2. SDP PREFETCH MESSAGE BRIDGE
-    // ต้องติดตั้ง Listener ก่อนโหลด iframe
-    // =====================================================
-
-    window.addEventListener('message', function (ev) {
-
-      // รับเฉพาะ iframe ที่กำหนด
-      if (ev.source !== iframe.contentWindow) return;
-
-      // ตรวจสอบ Origin ของหน้า GAS
-      if (ev.origin !== 'https://script.google.com') return;
-
-      if (!ev.data ||
-          ev.data.type !== 'SDP_PREFETCH_REQUEST') return;
-
-      // อ่าน Cache ที่ Wrapper เตรียมไว้
+    if (t === 'PWD_HELLO') {                         // หน้า login ถามว่ามี wrapper ไหม
+      ev.source.postMessage({ type: 'WRAPPER_HERE' }, ev.origin);
+    } else if (t === 'SDP_OPEN') {
+      activateSdp();
+    } else if (t === 'SDP_READY' && sdpFrame && !sdpReady) {
+      sdpReady = true; sdpInner = ev.source; sdpInnerOrigin = ev.origin;
+      if (pendingReveal) { const f = pendingReveal; pendingReveal = null; f(); }
+    } else if (t === 'SDP_PREFETCH_REQUEST') {
       const out = {};
-
       for (let i = 0; i < sessionStorage.length; i++) {
-
-        const key = sessionStorage.key(i);
-
-        if (key && key.indexOf(PREFIX) === 0) {
-          out[key] = sessionStorage.getItem(key);
-        }
+        const k = sessionStorage.key(i);
+        if (k && k.indexOf(PREFIX) === 0) out[k] = sessionStorage.getItem(k);
       }
-
-      // ส่งกลับไปยัง iframe
-      ev.source.postMessage({
-
-        type: 'SDP_PREFETCH_DATA',
-
-        data: out,
-
-        timestamp: Date.now()
-
-      }, ev.origin);
-
-    });
-
-
-    // =====================================================
-    // 3. LOAD IFRAME
-    // =====================================================
-
-    function loadIframe(url) {
-      iframe.src = url;
+      ev.source.postMessage({ type: 'SDP_PREFETCH_DATA', data: out }, ev.origin);
     }
+  });
 
+  /* ---------------- Routing ---------------- */
+  function load(url) { main.src = url; }
+  const clean = () => history.replaceState({}, document.title, location.pathname);
 
-    // =====================================================
-    // 4. LOGIN ERROR
-    // =====================================================
+  startPrefetch();
 
-    if (params.get('loginError')) {
+  if (params.get('loginError')) {
+    const msg = params.get('loginError'); clean();
+    Swal.fire({ icon: 'error', title: 'เข้าสู่ระบบไม่สำเร็จ', text: msg, confirmButtonText: 'ตกลง',
+                allowOutsideClick: false, allowEscapeKey: false, customClass: { popup: 'rounded-4 shadow-lg' } })
+      .then(() => load(BASE + '?action=login'));
+    return;
+  }
 
-      const errorHtml = params.get('loginError');
+  const token = params.get('token');
+  if (token) {
+    const role = params.get('role') || '', provider = params.get('provider') || 'google';
+    const act = (role === 'admin' || role === 'staff' || role === 'sdp_staff') ? 'admin' : 'user';
+    clean();
+    Swal.fire({ icon: 'success', title: 'เข้าสู่ระบบสำเร็จ', toast: true, position: 'top', showConfirmButton: false,
+                timer: 2200, timerProgressBar: true, customClass: { popup: 'rounded-4 shadow' } });
+    load(BASE + '?action=' + act + '&token=' + encodeURIComponent(token) + '&role=' + encodeURIComponent(role) + '&provider=' + encodeURIComponent(provider));
+    return;
+  }
 
-      history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-      Swal.fire({
-
-        icon: 'error',
-        title: 'เข้าสู่ระบบไม่สำเร็จ',
-
-        // ใช้ text เพื่อป้องกัน HTML injection
-        text: errorHtml,
-
-        confirmButtonText: 'ตกลง',
-
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-
-        customClass: {
-          popup: 'rounded-4 shadow-lg'
-        }
-
-      }).then(function () {
-
-        loadIframe(APPS_SCRIPT_BASE + '?action=login');
-
-      });
-
-      return;
+  if (params.get('action') === 'sdpRebook') {
+    const rb = params.get('rb') || '', m = params.get('m') || '', src = params.get('src') || '';
+    if (/^[0-9a-f-]{36}$/i.test(rb)) {
+      clean();
+      let u = BASE + '?action=sdpRebook&rb=' + encodeURIComponent(rb);
+      if (m === 'change') u += '&m=change';
+      if (/^[a-z_]{2,20}$/.test(src)) u += '&src=' + encodeURIComponent(src);
+      load(u); return;
     }
+  }
 
+  const ticket = params.get('ticket');
+  if (ticket && /^[0-9a-f-]{36}$/i.test(ticket)) {
+    const card = params.get('card') || '', src = params.get('src') || '';
+    clean();
+    let u = BASE + '?action=sdpBooking&ticket=' + encodeURIComponent(ticket);
+    if (/^[A-Za-z0-9]{4,10}$/.test(card)) u += '&card=' + encodeURIComponent(card);
+    if (/^[a-z_]{2,20}$/.test(src)) u += '&src=' + encodeURIComponent(src);
+    load(u); return;
+  }
 
-    // =====================================================
-    // 5. GOOGLE / LINE LOGIN SUCCESS
-    // =====================================================
-
-    const token = params.get('token');
-
-    if (token) {
-
-      history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-      const role = params.get('role') || '';
-
-      const provider = params.get('provider') || 'google';
-
-      const targetAction =
-        (
-          role === 'admin' ||
-          role === 'staff' ||
-          role === 'sdp_staff'
-        )
-          ? 'admin'
-          : 'user';
-
-      const targetUrl =
-        APPS_SCRIPT_BASE +
-        '?action=' + targetAction +
-        '&token=' + encodeURIComponent(token) +
-        '&role=' + encodeURIComponent(role) +
-        '&provider=' + encodeURIComponent(provider);
-
-
-      Swal.fire({
-
-        icon: 'success',
-        title: 'เข้าสู่ระบบสำเร็จ',
-
-        toast: true,
-        position: 'top',
-
-        showConfirmButton: false,
-
-        timer: 2200,
-        timerProgressBar: true,
-
-        customClass: {
-          popup: 'rounded-4 shadow'
-        }
-
-      });
-
-      loadIframe(targetUrl);
-
-      return;
-    }
-
-
-    // =====================================================
-    // 6. SDP REBOOK FROM LINE
-    // =====================================================
-
-    if (params.get('action') === 'sdpRebook') {
-
-      const rb = params.get('rb') || '';
-      const m = params.get('m') || '';
-      const src = params.get('src') || '';
-
-      if (/^[0-9a-f-]{36}$/i.test(rb)) {
-
-        history.replaceState(
-          {},
-          document.title,
-          window.location.pathname
-        );
-
-        let targetUrl =
-          APPS_SCRIPT_BASE +
-          '?action=sdpRebook&rb=' +
-          encodeURIComponent(rb);
-
-        if (m === 'change') {
-          targetUrl += '&m=change';
-        }
-
-        if (/^[a-z_]{2,20}$/.test(src)) {
-          targetUrl += '&src=' + encodeURIComponent(src);
-        }
-
-        loadIframe(targetUrl);
-
-        return;
-      }
-    }
-
-
-    // =====================================================
-    // 7. SDP BOOKING FROM E-CARD / LINE TICKET
-    // =====================================================
-
-    const ticket = params.get('ticket');
-
-    if (ticket && /^[0-9a-f-]{36}$/i.test(ticket)) {
-
-      const card = params.get('card') || '';
-      const src = params.get('src') || '';
-
-      history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
-
-      let targetUrl =
-        APPS_SCRIPT_BASE +
-        '?action=sdpBooking&ticket=' +
-        encodeURIComponent(ticket);
-
-      if (/^[A-Za-z0-9]{4,10}$/.test(card)) {
-        targetUrl += '&card=' + encodeURIComponent(card);
-      }
-
-      if (/^[a-z_]{2,20}$/.test(src)) {
-        targetUrl += '&src=' + encodeURIComponent(src);
-      }
-
-      loadIframe(targetUrl);
-
-      return;
-    }
-
-
-    // =====================================================
-    // 8. NORMAL LOGIN
-    // =====================================================
-
-    loadIframe(APPS_SCRIPT_BASE + '?action=login');
-
-  })();
-  </script>
-
+  /* หน้า login ปกติ แล้วค่อย preload หน้า SDP ตอนเบราว์เซอร์ว่าง */
+  load(BASE + '?action=login');
+  main.addEventListener('load', function once() {
+    main.removeEventListener('load', once);
+    (window.requestIdleCallback || (f => setTimeout(f, 1200)))(() => setTimeout(createSdpFrame, 400));
+  });
+})();
+</script>
 </body>
 </html>
 
